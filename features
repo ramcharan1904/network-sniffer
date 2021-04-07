@@ -1,0 +1,121 @@
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import ipaddress
+import collections
+import csv
+from datetime import datetime
+
+srcip = '192.168.0.8'
+
+if __name__ == "__main__":
+    file_num=0
+    dir='D:\directories'
+    NUM_FILE_CHARS=4
+    cnt = file_num
+    list = os.listdir(dir) # dir is your directory path
+    number_files = len(list)
+    print(number_files)
+    print('starting with', cnt)
+    while cnt < 10**NUM_FILE_CHARS:
+        file_name = str(cnt).zfill(NUM_FILE_CHARS) + '.csv'
+        global file_path
+        file_path = os.path.join(dir, file_name)
+        if not os.path.exists(file_path):
+            break
+        cnt += 1
+        if cnt>=number_files:
+         print("no more files in directory")
+         exit
+        
+
+
+        df = pd.read_csv(file_path, delimiter=",",header=None)
+   
+        avg_pktsize = round(df.iloc[:, 5].mean(axis=0),2)
+        min_pktsize = df.iloc[:, 5].min(axis=0)
+        max_pktsize = df.iloc[:, 5].max(axis=0)
+        sum_pktsize = df.iloc[:, 5].sum(axis=0)
+        min_time = df.iloc[:, 1].min()
+        max_time = df.iloc[:, 1].max()
+        max_hour = df.iloc[:,31].max()
+        max_min = df.iloc[:,30].max()
+
+    
+
+        print('Data size:', sum_pktsize)
+        print('Average packet size:',avg_pktsize)
+        print('Minimum packet size:', min_pktsize)
+        print('Maximum packet size:', max_pktsize)
+
+        arr = df.to_numpy()
+        print(arr)
+        smax=[] ; dmax = []
+        smax = arr[arr[:,11] == srcip][:,np.array([False, False, False,False, False, True, False,False, False,False, False, False, False, False,False,False, False, False, False, False, False,False,False,False, False, False, False, False, False,False,False,False,False ])]
+        dmax = arr[arr[:,11] != srcip][:,np.array([False, False, False,False, False, True, False,False,False, False,False, False, False, False,False,False, False, False, False, False, False, False,False,False, False, False, False, False, False,False,False,False,False ])]
+        print(smax)
+
+        print ('Size of larget packet sent from source',smax.max())
+        print ('Size of smallest packet sent from source',smax.min())
+        print ('Sum of source bytes', smax.sum())
+        print ( 'Average of source bytes', round(smax.mean()))
+        print ( 'No of connections from soure:', np.shape(smax)[0])
+
+        print ('Size of larget packet sent to source',dmax.max())
+        print ('Size of smallest packet sent to source',dmax.min())
+        print ('Sum of destination bytes', dmax.sum())
+        print ( 'Average of destination bytes', round(dmax.mean()))
+        print ( 'No of connections to source:', np.shape(dmax)[0])
+    
+        df1 = pd.DataFrame(df)\
+           .groupby(11, as_index=False)\
+           .count()\
+           .reset_index()
+    
+    
+        res = df1[['index', 9, 7]].values
+   
+        max_spcount = df1.iloc[:, 2].max()
+      
+        print ('Max number of connections to a specific source port', max_spcount)
+
+        df1 = pd.DataFrame(df[df.iloc[:,10] != srcip])\
+          .groupby(10, as_index=False)\
+          .count()\
+          .reset_index()
+    
+    
+        res = df1[['index', 10, 7]].values
+        max_dscount = df1.iloc[:, 2].max()
+        print ('Max number of connections to a specific destination', max_dscount)
+
+#Finding TCP Flags status information and count
+        fincount = 0 ; syncount = 0; rstcount=0; pshcount = 0; ackcount = 0; urgcount =0; ececount = 0 ; cwrcount =0
+        for i in range(np.shape(arr)[0]):
+            if 'F' in arr[i,18]: 
+               fincount = fincount+1
+            if 'S' in arr[i,18]:
+               syncount = syncount+1
+            if 'R' in arr[i,18]:
+               rstcount = rstcount+1
+            if 'P' in arr[i,18]:
+               pshcount = pshcount+1
+            if 'A' in arr[i,18]:
+               ackcount = ackcount+1
+            if 'U' in arr[i,18]:
+               urgcount = urgcount+1
+            if 'E' in arr[i,18]:
+               ececount = ececount+1
+            if 'C' in arr[i,18]:
+               cwrcount = cwrcount+1
+        print ( 'FIN:',fincount,'SYN:',syncount,'RST :',rstcount,'PSH:',pshcount, 'ACK:',ackcount, 'URG:',urgcount, 'ECE:',ececount, 'CWR:',cwrcount)
+
+        feature_data=[srcip,sum_pktsize,avg_pktsize,max_pktsize,min_pktsize,smax.max(),smax.min(),smax.sum(),round(smax.mean()),np.shape(smax)[0],dmax.max(),dmax.min(),dmax.sum(),round(dmax.mean()),np.shape(dmax)[0],max_spcount,max_dscount,fincount,syncount,rstcount,pshcount,ackcount,urgcount,ececount,cwrcount,max_hour,max_min]
+        with open("feature_4.csv",'a',newline="") as p:
+            writer=csv.writer(p)
+         # writer.writerow(feature_headings)
+            writer.writerow(feature_data)
+
+       
